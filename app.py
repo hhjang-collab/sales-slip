@@ -319,7 +319,7 @@ if uploaded_files and not st.session_state.is_processed:
 # --- 메인 화면 데이터 미리보기 표 ---
 if st.session_state.is_processed:
     if st.session_state.preview_data:
-        st.subheader("🔎 핵심 데이터 미리보기")
+        st.subheader("🔎 미리보기")
         df = pd.DataFrame(st.session_state.preview_data)
         
         # ⭐️ 엑셀 다운로드는 전체 데이터를 유지하되, 화면에는 지정된 4개 컬럼만 출력합니다.
