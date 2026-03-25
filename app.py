@@ -311,7 +311,7 @@ if st.session_state.is_processed:
     
     with st.sidebar:
         st.header("📊 처리 결과")
-        st.metric("원본 문서", f"{st.session_state.stats['total']} 개")
+        st.metric("📜 원본 문서", f"{st.session_state.stats['total']} 개")
         st.metric("✅ 정상 처리", f"{st.session_state.stats['success']} 건")
         st.metric("⚠️ 검토 요망", f"{st.session_state.stats['error']} 건")
         
