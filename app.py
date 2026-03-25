@@ -1,5 +1,3 @@
-# app.py
-
 import streamlit as st
 import re
 import io
@@ -11,16 +9,15 @@ import base64  # ⭐️ 이미지 변환을 위해 추가됨
 from pypdf import PdfReader, PdfWriter
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment
+from openpyxl.utils import get_column_letter
+
+# --- 페이지 기본 설정 ---
+# [공통 규칙 2] 레이아웃 "centered" 적용
+st.set_page_config(page_title="매출전표 정리 자동화", page_icon="🧾", layout="centered")
 
 # ==========================================
-# 1. 페이지 기본 설정
-# 데이터 표/대시보드가 주력이므로 layout을 "wide"로 설정합니다.
-# ==========================================
-st.set_page_config(page_title="매출전표 정리 자동화", page_icon="🧾", layout="wide")
-
-# ==========================================
-# 2. 🔒 보안(비밀번호) 설정 영역 (폼 형태)
-# 로그인 전에는 메인 화면이 보이지 않도록 최상단에 배치
+# 🔒 보안(비밀번호) 설정 영역 (폼 형태)
+# [공통 규칙 3] 페이지 설정 직후 비밀번호 로직 처리 및 st.stop() 적용
 # ==========================================
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -32,7 +29,7 @@ if not st.session_state.authenticated:
         submitted = st.form_submit_button("확인")
         
         if submitted:
-            # st.secrets에 값이 없으면 기본값(ip2b)으로 작동하도록 방어 코드
+            # st.secrets에 값이 없으면 기본값(ip2b)으로 작동하도록 방어 코드를 넣었습니다.
             expected_pwd = st.secrets.get("APP_PASSWORD", "ip2b") 
             if pwd == expected_pwd:
                 st.session_state.authenticated = True
@@ -40,20 +37,13 @@ if not st.session_state.authenticated:
             else:
                 st.error("비밀번호가 일치하지 않습니다.")
     st.stop() # 비밀번호 통과 전까지 아래 코드 실행 중지
-
 # ==========================================
-# 3. 🖼️ 로고 변환 함수 및 통합 CSS 적용
-# ==========================================
-def get_base64_of_bin_file(bin_file):
-    try:
-        with open(bin_file, 'rb') as f:
-            return base64.b64encode(f.read()).decode()
-    except:
-        return "" 
 
+# --- 🎨 통합 CSS (플로팅 로고 및 파일 목록 스타일) ---
+# [공통 규칙 6] UI 최적화 (불필요한 안내 문구 숨기기)
 st.markdown("""
     <style>
-    /* ⭐️ 'Press Enter to submit form' 등 불필요한 안내 문구 강제로 숨기기 */
+    /* 'Press Enter to submit form' 안내 문구 강제로 숨기기 */
     div[data-testid="InputInstructions"] {
         display: none !important;
     }
@@ -67,7 +57,7 @@ st.markdown("""
         margin-top: 8px;
     }
     
-    /* 우측 상단 플로팅 로고 스타일 */
+    /* [공통 규칙 4] 우측 상단 플로팅 로고 스타일 및 모바일 대응 */
     .company-logo {
         position: fixed;
         top: 70px;      
@@ -86,7 +76,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 제작사 로고 화면에 띄우기 (HTML)
+# --- 🖼️ 로고 변환 함수 ---
+def get_base64_of_bin_file(bin_file):
+    try:
+        with open(bin_file, 'rb') as f:
+            return base64.b64encode(f.read()).decode()
+    except:
+        return "" 
+
+# --- 🖼️ 제작사 로고 화면에 띄우기 (HTML) ---
 # 주의: 같은 폴더 안에 company_logo.png 파일이 있어야 합니다.
 comp_img_base64 = get_base64_of_bin_file("company_logo.png") 
 
@@ -100,9 +98,8 @@ if comp_img_base64:
         unsafe_allow_html=True
     )
 
-# ==========================================
-# 4. 사이드바 - 홈 버튼 (포털 복귀) 및 얇은 여백 구분선
-# ==========================================
+# --- 사이드바: 홈 버튼 및 얇은 여백 구분선 ---
+# [공통 규칙 5] 사이드바 최상단 홈 버튼 배치 (두꺼운 기본 버튼 대신 텍스트 링크 사용)
 with st.sidebar:
     st.markdown(
         '''
@@ -116,10 +113,7 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-# ==========================================
-# 5. 앱 구동을 위한 초기화 및 로직 함수
-# ==========================================
-# 세션 상태(Session State) 초기화
+# --- 세션 상태(Session State) 초기화 ---
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = str(uuid.uuid4())
 if "is_processed" not in st.session_state:
@@ -138,7 +132,7 @@ def reset_app():
     st.session_state.stats = {"total": 0, "success": 0, "error": 0}
     st.session_state.preview_data = []
 
-# 데이터 추출 로직 함수
+# --- 데이터 추출 로직 함수 ---
 def extract_receipt_info(text_layout, text_normal):
     date_str, time_str, store_name, supply_val, vat_val, card_str, total_amount = ("", "", "", "", "", "", "")
 
@@ -172,9 +166,7 @@ def extract_receipt_info(text_layout, text_normal):
             
     return date_str, time_str, store_name, supply_val, vat_val, card_str, total_amount
 
-# ==========================================
-# 6. 메인 화면 렌더링
-# ==========================================
+# --- 메인 화면 ---
 st.title("🧾 매출전표 정리 자동화")
 
 with st.expander("💡 사용 방법"):
@@ -197,7 +189,7 @@ if uploaded_files and not st.session_state.is_processed:
     
     st.success(f"✅ 총 **{len(uploaded_files)}개**의 파일이 성공적으로 업로드되었습니다. 아래 버튼을 눌러주세요.")
     
-    # 얇은 여백 구분선 적용
+    # [공통 규칙 7] 여백이 얇은 구분선 활용 (st.divider 교체)
     st.markdown('<hr style="margin-top: 15px; margin-bottom: 15px; border: 0; border-top: 1px solid rgba(49, 51, 63, 0.2);">', unsafe_allow_html=True)
     
     if st.button("작업 실행", type="primary", use_container_width=True):
@@ -326,9 +318,6 @@ if uploaded_files and not st.session_state.is_processed:
 
 # --- 메인 화면 데이터 미리보기 표 ---
 if st.session_state.is_processed:
-    # 얇은 여백 구분선 적용
-    st.markdown('<hr style="margin-top: 15px; margin-bottom: 15px; border: 0; border-top: 1px solid rgba(49, 51, 63, 0.2);">', unsafe_allow_html=True)
-    
     if st.session_state.preview_data:
         st.subheader("🔎 미리보기")
         df = pd.DataFrame(st.session_state.preview_data)
@@ -346,7 +335,7 @@ if st.session_state.is_processed:
         st.metric("✅ 정상 처리", f"{st.session_state.stats['success']} 건")
         st.metric("⚠️ 검토 요망", f"{st.session_state.stats['error']} 건")
         
-        # 얇은 여백 구분선 적용
+        # [공통 규칙 7] 여백이 얇은 구분선 활용 (st.divider 교체)
         st.markdown('<hr style="margin-top: 15px; margin-bottom: 15px; border: 0; border-top: 1px solid rgba(49, 51, 63, 0.2);">', unsafe_allow_html=True)
         
         st.download_button(
